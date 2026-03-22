@@ -1,16 +1,16 @@
 # vscode-vinculum — Backlog
 
-## Publish to Marketplace
-- Install `vsce`: `npm install -g @vscode/vsce`
-- Add an icon (`icon.png`, 128×128) to `package.json`
-- Run `vsce package` to produce a `.vsix` for local testing
-- Run `vsce publish` to push to the VS Code Marketplace
+## Logo
+- Replace the placeholder icon (V with overbar on indigo) with a proper Vinculum logo
+- Needs to be 128×128 PNG; source SVG is in `icon.svg`
+- Regenerate `icon.png` from `scripts/generate-icon.js` after updating the SVG
+- Publish a new patch version once updated
 
-## Hover Documentation
-- Add a `vscode.HoverProvider` for the `vcl` language
-- On hover over a block keyword (`subscription`, `cron`, `server`, etc.), show a
-  brief description and the relevant doc section
-- No LSP required — pure TypeScript `vscode.languages.registerHoverProvider`
+## GitHub CI
+- Add `.github/workflows/ci.yml`
+- On push: `npm install`, `npm run build`, `npm run typecheck`
+- On tag (e.g. `v*`): also run `vsce package` and attach the `.vsix` as a release asset
+- Consider `vsce publish` on tag using a stored PAT secret
 
 ## Context-aware Completions
 - Add a `vscode.CompletionItemProvider` to replace dumb snippet triggers
