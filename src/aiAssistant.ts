@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import Anthropic from '@anthropic-ai/sdk';
+import { marked } from 'marked';
 
 const GITHUB_REPO = 'tsarna/vinculum';
 const GITHUB_BRANCH = 'main';
@@ -106,9 +107,14 @@ export class AiAssistantPanel {
         messages: [{ role: 'user', content: message.question }],
       });
 
-      stream.on('text', (text) => post({ type: 'token', text }));
+      let accumulated = '';
+      stream.on('text', (text) => {
+        accumulated += text;
+        post({ type: 'token', text });
+      });
 
       await stream.finalMessage();
+      post({ type: 'rendered', html: await marked.parse(accumulated) });
       post({ type: 'done' });
     } catch (err) {
       post({ type: 'error', message: err instanceof Error ? err.message : String(err) });
@@ -229,6 +235,31 @@ export class AiAssistantPanel {
       content: '▋'; animation: blink 1s step-end infinite;
     }
     @keyframes blink { 50% { opacity: 0; } }
+    .msg.assistant p { margin: 0 0 8px; }
+    .msg.assistant p:last-child { margin-bottom: 0; }
+    .msg.assistant pre {
+      background: var(--vscode-textCodeBlock-background);
+      border-radius: 4px; padding: 8px 12px; margin: 6px 0;
+      overflow-x: auto; white-space: pre;
+    }
+    .msg.assistant code {
+      font-family: var(--vscode-editor-font-family);
+      font-size: 0.95em;
+    }
+    .msg.assistant pre code { background: none; padding: 0; }
+    .msg.assistant :not(pre) > code {
+      background: var(--vscode-textCodeBlock-background);
+      padding: 1px 4px; border-radius: 3px;
+    }
+    .msg.assistant ul, .msg.assistant ol { padding-left: 20px; margin: 4px 0 8px; }
+    .msg.assistant li { margin: 2px 0; }
+    .msg.assistant h1, .msg.assistant h2, .msg.assistant h3 {
+      margin: 10px 0 4px; font-weight: 600;
+    }
+    .msg.assistant blockquote {
+      border-left: 3px solid var(--vscode-panel-border);
+      margin: 6px 0; padding: 2px 12px; opacity: 0.85;
+    }
     #footer {
       display: flex; gap: 8px; padding: 8px 12px;
       border-top: 1px solid var(--vscode-panel-border);
@@ -294,6 +325,9 @@ export class AiAssistantPanel {
       if (data.type === 'token' && currentDiv) {
         currentDiv.classList.remove('thinking');
         currentDiv.textContent += data.text;
+        msgsEl.scrollTop = msgsEl.scrollHeight;
+      } else if (data.type === 'rendered' && currentDiv) {
+        currentDiv.innerHTML = data.html;
         msgsEl.scrollTop = msgsEl.scrollHeight;
       } else if (data.type === 'done') {
         streaming = false; sendEl.disabled = false;
