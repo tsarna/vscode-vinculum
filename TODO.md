@@ -6,11 +6,12 @@
 - Regenerate `icon.png` from `scripts/generate-icon.js` after updating the SVG
 - Publish a new patch version once updated
 
-## GitHub CI
-- Add `.github/workflows/ci.yml`
-- On push: `npm install`, `npm run build`, `npm run typecheck`
-- On tag (e.g. `v*`): also run `vsce package` and attach the `.vsix` as a release asset
-- Consider `vsce publish` on tag using a stored PAT secret
+## ~~GitHub CI~~ ✓
+On push/PR: typecheck + build. On `v*` tag: package `.vsix` and attach to GitHub release.
+
+## CI: Auto-publish to Marketplace on tag
+- Store Marketplace PAT as a GitHub Actions secret (`VSCE_PAT`)
+- Add a publish step to `.github/workflows/ci.yml` after the package step
 
 ## Context-aware Completions
 - Add a `vscode.CompletionItemProvider` to replace dumb snippet triggers
