@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background -->
+  <rect width="128" height="128" rx="20" fill="#2d1b69"/>
+  <!-- Overbar -->
+  <line x1="24" y1="26" x2="104" y2="26" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <!-- V -->
+  <polyline points="24,44 64,100 104,44"
+            fill="none" stroke="white" stroke-width="10"
+            stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
