@@ -1,0 +1,150 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "VCL",
+  "scopeName": "source.vcl",
+  "fileTypes": ["vcl"],
+  "patterns": [
+    { "include": "#comment_block" },
+    { "include": "#comment_line" },
+    { "include": "#heredoc" },
+    { "include": "#string" },
+    { "include": "#block_keyword" },
+    { "include": "#subblock_keyword" },
+    { "include": "#literal" },
+    { "include": "#number" },
+    { "include": "#builtin_variable" },
+    { "include": "#operator" },
+    { "include": "#function_call" }
+  ],
+  "repository": {
+    "comment_line": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.vcl",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.vcl",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "comment_block": {
+      "name": "comment.block.vcl",
+      "begin": "/\\*",
+      "end": "\\*/"
+    },
+    "heredoc": {
+      "name": "string.unquoted.heredoc.vcl",
+      "begin": "<<-?(\\w+)$",
+      "beginCaptures": {
+        "1": { "name": "keyword.operator.heredoc.vcl" }
+      },
+      "end": "^\\s*\\1$",
+      "endCaptures": {
+        "0": { "name": "keyword.operator.heredoc.vcl" }
+      }
+    },
+    "string": {
+      "name": "string.quoted.double.vcl",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "meta.embedded.inline.vcl",
+          "begin": "\\$\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.section.embedded.begin.vcl" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.section.embedded.end.vcl" }
+          },
+          "patterns": [
+            { "include": "#builtin_variable" },
+            { "include": "#function_call" },
+            { "include": "#operator" },
+            { "include": "#number" },
+            { "include": "#literal" }
+          ]
+        },
+        {
+          "name": "constant.character.escape.vcl",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "block_keyword": {
+      "name": "storage.type.vcl",
+      "match": "\\b(assert|bus|client|const|cron|function|jq|metric|server|signals|subscription|var)\\b"
+    },
+    "subblock_keyword": {
+      "name": "keyword.control.vcl",
+      "match": "\\b(at|files|handle|prompt|resource|tool)\\b"
+    },
+    "literal": {
+      "patterns": [
+        {
+          "name": "constant.language.vcl",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.vcl",
+          "match": "\\b[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.vcl",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "builtin_variable": {
+      "patterns": [
+        {
+          "name": "variable.language.vcl",
+          "match": "\\b(bus|client|env|http_status|metric|server|var)(?=\\.)"
+        },
+        {
+          "name": "variable.language.vcl",
+          "match": "\\bctx\\b"
+        }
+      ]
+    },
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.vcl",
+          "match": "==|!=|<=|>="
+        },
+        {
+          "name": "keyword.operator.assignment.vcl",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.comparison.vcl",
+          "match": "<|>"
+        },
+        {
+          "name": "keyword.operator.ternary.vcl",
+          "match": "\\?|:"
+        },
+        {
+          "name": "keyword.operator.arithmetic.vcl",
+          "match": "\\+|-|\\*|/|%"
+        },
+        {
+          "name": "keyword.operator.logical.vcl",
+          "match": "&&|\\|\\||!"
+        }
+      ]
+    },
+    "function_call": {
+      "name": "entity.name.function.vcl",
+      "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\s*\\()"
+    }
+  }
+}

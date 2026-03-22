@@ -1,0 +1,279 @@
+{
+  "Bus": {
+    "prefix": "bus",
+    "body": [
+      "bus \"${1:name}\" {",
+      "\tqueue_size = ${2:1000}",
+      "}"
+    ],
+    "description": "Declare an event bus"
+  },
+
+  "Const": {
+    "prefix": "const",
+    "body": [
+      "const {",
+      "\t${1:name} = ${2:value}",
+      "\t$0",
+      "}"
+    ],
+    "description": "Define named constants (add as many name = value pairs as needed)"
+  },
+
+  "Var": {
+    "prefix": "var",
+    "body": [
+      "var \"${1:name}\" {",
+      "\tvalue = ${2:0}",
+      "}"
+    ],
+    "description": "Declare a mutable runtime variable"
+  },
+
+  "Assert": {
+    "prefix": "assert",
+    "body": [
+      "assert \"${1:name}\" {",
+      "\tcondition = ${2:expression}",
+      "}"
+    ],
+    "description": "Assert a condition at startup"
+  },
+
+  "Subscription": {
+    "prefix": "subscription",
+    "body": [
+      "subscription \"${1:name}\" {",
+      "\ttarget = bus.${2:main}",
+      "\ttopics = [\"${3:#}\"]",
+      "\taction = ${4:log_info(\"received\", {topic = ctx.topic, msg = ctx.msg})}",
+      "}"
+    ],
+    "description": "Subscribe to messages from a bus"
+  },
+
+  "Subscription with transforms": {
+    "prefix": "subscription-transforms",
+    "body": [
+      "subscription \"${1:name}\" {",
+      "\ttarget     = bus.${2:main}",
+      "\ttopics     = [\"${3:#}\"]",
+      "\ttransforms = [",
+      "\t\t${4:jq(\".\")}",
+      "\t]",
+      "\tsubscriber = bus.${5:output}",
+      "}"
+    ],
+    "description": "Subscription with transform pipeline"
+  },
+
+  "Cron": {
+    "prefix": "cron",
+    "body": [
+      "cron \"${1:name}\" {",
+      "\tat \"${2:* * * * *}\" \"${3:rule}\" {",
+      "\t\taction = ${4:send(ctx, bus.main, \"${5:topic}\", \"${6:payload}\")}",
+      "\t}",
+      "}"
+    ],
+    "description": "Cron-style scheduler"
+  },
+
+  "Function": {
+    "prefix": "function",
+    "body": [
+      "function \"${1:name}\" {",
+      "\tparams = [${2:a, b}]",
+      "\tresult = ${3:a + b}",
+      "}"
+    ],
+    "description": "Define a user-callable function"
+  },
+
+  "JQ function": {
+    "prefix": "jq",
+    "body": [
+      "jq \"${1:name}\" {",
+      "\tparams = [${2:}]",
+      "\tquery  = \"${3:.}\"",
+      "}"
+    ],
+    "description": "Define a JQ-backed function"
+  },
+
+  "Server HTTP": {
+    "prefix": "server-http",
+    "body": [
+      "server \"http\" \"${1:name}\" {",
+      "\tlisten = \":${2:8080}\"",
+      "",
+      "\thandle \"${3:GET /health}\" {",
+      "\t\taction = respond(http_status.OK, {status = \"ok\"})",
+      "\t}",
+      "}"
+    ],
+    "description": "HTTP server with a route handler"
+  },
+
+  "HTTP handle": {
+    "prefix": "handle",
+    "body": [
+      "handle \"${1:POST /path}\" {",
+      "\taction = ${2:respond(http_status.OK, {status = \"ok\"})}",
+      "}"
+    ],
+    "description": "HTTP route handler"
+  },
+
+  "HTTP files": {
+    "prefix": "files",
+    "body": [
+      "files \"${1:/static}\" {",
+      "\tdirectory = \"${2:./web/static}\"",
+      "}"
+    ],
+    "description": "Serve static files over HTTP"
+  },
+
+  "Server MCP": {
+    "prefix": "server-mcp",
+    "body": [
+      "server \"mcp\" \"${1:name}\" {",
+      "\tlisten         = \":${2:9000}\"",
+      "\tpath           = \"${3:/mcp}\"",
+      "\tserver_name    = \"${4:My MCP Server}\"",
+      "\tserver_version = \"${5:1.0.0}\"",
+      "",
+      "\ttool \"${6:tool_name}\" {",
+      "\t\tdescription = \"${7:What this tool does}\"",
+      "\t\taction      = ${8:jsonencode({result = \"ok\"})}",
+      "\t}",
+      "}"
+    ],
+    "description": "MCP server"
+  },
+
+  "MCP tool": {
+    "prefix": "tool",
+    "body": [
+      "tool \"${1:name}\" {",
+      "\tdescription = \"${2:What this tool does}\"",
+      "\taction      = ${3:jsonencode({result = \"ok\"})}",
+      "}"
+    ],
+    "description": "MCP tool block"
+  },
+
+  "MCP resource": {
+    "prefix": "resource",
+    "body": [
+      "resource \"${1:scheme://path}\" {",
+      "\tname        = \"${2:Display Name}\"",
+      "\tdescription = \"${3:Human-readable description}\"",
+      "\taction      = ${4:\"content\"}",
+      "}"
+    ],
+    "description": "MCP resource block"
+  },
+
+  "MCP prompt": {
+    "prefix": "prompt",
+    "body": [
+      "prompt \"${1:name}\" {",
+      "\tdescription = \"${2:What this prompt does}\"",
+      "\taction      = ${3:\"prompt text\"}",
+      "}"
+    ],
+    "description": "MCP prompt block"
+  },
+
+  "Server VWS": {
+    "prefix": "server-vws",
+    "body": [
+      "server \"vws\" \"${1:name}\" {",
+      "\tlisten = \":${2:9000}\"",
+      "\tpath   = \"${3:/events}\"",
+      "\tbus    = bus.${4:main}",
+      "}"
+    ],
+    "description": "Vinculum WebSocket pub/sub server"
+  },
+
+  "Server WebSocket": {
+    "prefix": "server-websocket",
+    "body": [
+      "server \"websocket\" \"${1:name}\" {",
+      "\tlisten = \":${2:9001}\"",
+      "\tpath   = \"${3:/ws}\"",
+      "\tbus    = bus.${4:main}",
+      "\ttopic  = \"${5:ws/messages}\"",
+      "}"
+    ],
+    "description": "Simple WebSocket server"
+  },
+
+  "Client OpenAI": {
+    "prefix": "client-openai",
+    "body": [
+      "client \"openai\" \"${1:name}\" {",
+      "\tapi_key     = env.${2:OPENAI_API_KEY}",
+      "\tmodel       = \"${3:gpt-4o}\"",
+      "\tmax_tokens  = ${4:4096}",
+      "\ttemperature = ${5:0.7}",
+      "}"
+    ],
+    "description": "OpenAI (or compatible) LLM client"
+  },
+
+  "Client VWS": {
+    "prefix": "client-vws",
+    "body": [
+      "client \"vws\" \"${1:name}\" {",
+      "\turl = \"${2:ws://host:9000/events}\"",
+      "}"
+    ],
+    "description": "Vinculum WebSocket client"
+  },
+
+  "Metric gauge": {
+    "prefix": "metric-gauge",
+    "body": [
+      "metric \"gauge\" \"${1:name}\" {",
+      "\thelp = \"${2:Description of this gauge}\"",
+      "}"
+    ],
+    "description": "Prometheus gauge metric"
+  },
+
+  "Metric counter": {
+    "prefix": "metric-counter",
+    "body": [
+      "metric \"counter\" \"${1:name_total}\" {",
+      "\thelp = \"${2:Description of this counter}\"",
+      "}"
+    ],
+    "description": "Prometheus counter metric (name should end in _total)"
+  },
+
+  "Metric histogram": {
+    "prefix": "metric-histogram",
+    "body": [
+      "metric \"histogram\" \"${1:name_seconds}\" {",
+      "\thelp    = \"${2:Description of this histogram}\"",
+      "\tbuckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]",
+      "}"
+    ],
+    "description": "Prometheus histogram metric"
+  },
+
+  "Signals": {
+    "prefix": "signals",
+    "body": [
+      "signals {",
+      "\tSIGHUP  = ${1:log_info(\"sighup\", {signal = ctx.signal})}",
+      "\tSIGUSR1 = ${2:log_info(\"sigusr1\", {signal = ctx.signal})}",
+      "}"
+    ],
+    "description": "Map OS signals to actions"
+  }
+}

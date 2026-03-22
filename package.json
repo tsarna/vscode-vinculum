@@ -1,0 +1,48 @@
+{
+  "name": "vscode-vinculum",
+  "displayName": "Vinculum VCL",
+  "description": "Syntax highlighting and snippets for Vinculum Configuration Language (.vcl)",
+  "version": "0.1.0",
+  "publisher": "tsarna",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsarna/vscode-vinculum"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "keywords": [
+    "vcl",
+    "vinculum",
+    "hcl",
+    "configuration"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vcl",
+        "aliases": ["VCL", "Vinculum"],
+        "extensions": [".vcl"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vcl",
+        "scopeName": "source.vcl",
+        "path": "./syntaxes/vcl.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "vcl",
+        "path": "./snippets/vcl.json"
+      }
+    ]
+  }
+}
