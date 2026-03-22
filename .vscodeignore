@@ -1,5 +1,8 @@
 .gitignore
 .vscodeignore
 node_modules/**
+src/**
+tsconfig.json
+esbuild.js
 *.vsix
 .DS_Store

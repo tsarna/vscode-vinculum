@@ -1,7 +1,7 @@
 {
   "name": "vscode-vinculum",
   "displayName": "Vinculum VCL",
-  "description": "Syntax highlighting and snippets for Vinculum Configuration Language (.vcl)",
+  "description": "Syntax highlighting, snippets, and AI assistance for Vinculum Configuration Language (.vcl)",
   "version": "0.1.0",
   "publisher": "tsarna",
   "license": "MIT",
@@ -14,7 +14,8 @@
   },
   "categories": [
     "Programming Languages",
-    "Snippets"
+    "Snippets",
+    "Other"
   ],
   "keywords": [
     "vcl",
@@ -22,6 +23,7 @@
     "hcl",
     "configuration"
   ],
+  "main": "./dist/extension.js",
   "contributes": {
     "languages": [
       {
@@ -43,6 +45,42 @@
         "language": "vcl",
         "path": "./snippets/vcl.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "vinculum.askAI",
+        "title": "Ask AI",
+        "category": "Vinculum"
+      },
+      {
+        "command": "vinculum.clearDocCache",
+        "title": "Clear Documentation Cache",
+        "category": "Vinculum"
+      }
+    ],
+    "configuration": {
+      "title": "Vinculum",
+      "properties": {
+        "vinculum.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-6",
+          "description": "Anthropic model to use for AI assistance"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.0"
   }
 }
