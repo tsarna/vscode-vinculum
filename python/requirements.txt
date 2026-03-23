@@ -1,0 +1,8 @@
+langchain>=0.3
+langchain-core>=0.3
+langchain-openai>=0.2          # OpenAI-compatible chat (OpenAI, Groq, Together, Mistral…) + optional embeddings
+langchain-anthropic>=0.3       # Anthropic chat (Claude)
+langchain-text-splitters>=0.3  # RecursiveCharacterTextSplitter
+langchain-community>=0.3       # FastEmbedEmbeddings + FAISS vector store
+fastembed>=0.3                 # Local ONNX embeddings — no API key required
+faiss-cpu>=1.7                 # Persistent vector index with save/load support

@@ -3,3 +3,5 @@ dist/
 *.vsix
 .DS_Store
 test.vcl
+python/.venv/
+**/__pycache__/
