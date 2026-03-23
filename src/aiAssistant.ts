@@ -1,22 +1,101 @@
 import * as vscode from 'vscode';
-import Anthropic from '@anthropic-ai/sdk';
+import * as cp from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { marked } from 'marked';
 
-const GITHUB_REPO = 'tsarna/vinculum';
-const GITHUB_BRANCH = 'main';
-const DOC_DIR = 'doc';
-const CACHE_FILE = 'docs-cache.json';
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+// ── Venv management ───────────────────────────────────────────────────────────
+//
+// The extension maintains its own Python venv under globalStorageUri so it is
+// isolated from the user's system Python (important on macOS/Homebrew where
+// PEP 668 blocks bare pip installs).
+//
+// Layout:
+//   {globalStorageUri}/
+//     venv/          ← created by `python3 -m venv`
+//       bin/python   ← always used for CLI invocations
+//       .installed   ← marker file written after successful pip install
 
-interface DocsCache {
-  timestamp: number;
-  content: string;
+// Cached promise — concurrent calls share the same setup work.
+let _venvReady: Promise<string> | undefined;
+
+function venvPythonPath(globalStoragePath: string): string {
+  const bin = process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python';
+  return path.join(globalStoragePath, 'venv', bin);
 }
 
-interface GithubFile {
-  name: string;
-  download_url: string;
+function venvMarkerPath(globalStoragePath: string): string {
+  return path.join(globalStoragePath, 'venv', '.installed');
 }
+
+/** Run a command as a child process, resolving on exit 0, rejecting otherwise. */
+function spawnToPromise(cmd: string, args: string[], env?: NodeJS.ProcessEnv): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = cp.spawn(cmd, args, { env: env ?? process.env });
+    let stderr = '';
+    proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+    proc.on('close', (code) => {
+      if (code === 0) { resolve(); }
+      else { reject(new Error(stderr.trim() || `Process exited with code ${code}`)); }
+    });
+    proc.on('error', (err: NodeJS.ErrnoException) => {
+      const hint = err.code === 'ENOENT'
+        ? `\nCould not find "${cmd}". Set a custom path in Settings → Vinculum › Python Path.`
+        : '';
+      reject(new Error(err.message + hint));
+    });
+  });
+}
+
+/**
+ * Ensure the managed venv exists and has all deps installed.
+ * Returns the path to the venv Python executable.
+ * Result is cached for the lifetime of the extension process.
+ */
+function ensureVenv(extensionPath: string, globalStoragePath: string): Promise<string> {
+  if (_venvReady) { return _venvReady; }
+
+  _venvReady = _doEnsureVenv(extensionPath, globalStoragePath).catch((err) => {
+    _venvReady = undefined; // allow retry on next call
+    throw err;
+  });
+  return _venvReady;
+}
+
+async function _doEnsureVenv(extensionPath: string, globalStoragePath: string): Promise<string> {
+  const pythonBin = venvPythonPath(globalStoragePath);
+  const marker = venvMarkerPath(globalStoragePath);
+
+  if (fs.existsSync(marker)) {
+    return pythonBin; // already set up
+  }
+
+  const config = vscode.workspace.getConfiguration('vinculum');
+  const systemPython = config.get<string>('pythonPath', 'python3');
+  const venvDir = path.join(globalStoragePath, 'venv');
+  const requirementsTxt = path.join(extensionPath, 'python', 'requirements.txt');
+  const pip = path.join(globalStoragePath, 'venv',
+    process.platform === 'win32' ? 'Scripts/pip.exe' : 'bin/pip');
+
+  await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'Vinculum AI', cancellable: false },
+    async (progress) => {
+      progress.report({ message: 'Creating Python environment…' });
+      fs.mkdirSync(globalStoragePath, { recursive: true });
+      await spawnToPromise(systemPython, ['-m', 'venv', venvDir]);
+
+      progress.report({ message: 'Installing dependencies (first run, may take a minute)…' });
+      await spawnToPromise(pip, ['install', '-q', '-r', requirementsTxt]);
+
+      fs.writeFileSync(marker, new Date().toISOString());
+    },
+  );
+
+  return pythonBin;
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
 
 export class AiAssistantPanel {
   public static currentPanel: AiAssistantPanel | undefined;
@@ -25,6 +104,7 @@ export class AiAssistantPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _context: vscode.ExtensionContext;
   private readonly _disposables: vscode.Disposable[] = [];
+  private _activeProc: cp.ChildProcess | undefined;
 
   // ── Static API ────────────────────────────────────────────────────────────
 
@@ -49,12 +129,22 @@ export class AiAssistantPanel {
   }
 
   public static async clearDocCache(context: vscode.ExtensionContext): Promise<void> {
-    const cacheUri = vscode.Uri.joinPath(context.globalStorageUri, CACHE_FILE);
+    const globalStoragePath = context.globalStorageUri.fsPath;
+    let pythonBin: string;
     try {
-      await vscode.workspace.fs.delete(cacheUri);
-    } catch {
-      // File didn't exist — that's fine
+      pythonBin = await ensureVenv(context.extensionPath, globalStoragePath);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Vinculum AI: ${err instanceof Error ? err.message : String(err)}`);
+      return;
     }
+
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'Vinculum AI: Refreshing index…', cancellable: false },
+      () => spawnToPromise(pythonBin, ['-m', 'vinculum_ai', '--refresh-index'], {
+        ...process.env,
+        PYTHONPATH: path.join(context.extensionPath, 'python'),
+      }).catch(() => { /* non-fatal */ }),
+    );
   }
 
   // ── Constructor ───────────────────────────────────────────────────────────
@@ -73,6 +163,7 @@ export class AiAssistantPanel {
   }
 
   public dispose(): void {
+    this._activeProc?.kill();
     AiAssistantPanel.currentPanel = undefined;
     this._panel.dispose();
     for (const d of this._disposables) { d.dispose(); }
@@ -84,41 +175,87 @@ export class AiAssistantPanel {
     if (message.type !== 'ask' || !message.question) { return; }
 
     const post = (data: object) => this._panel.webview.postMessage(data);
+    const globalStoragePath = this._context.globalStorageUri.fsPath;
 
+    // ── 1. Ensure venv + deps ────────────────────────────────────────────────
+    let pythonBin: string;
     try {
-      const apiKey = await this._getApiKey();
-      if (!apiKey) {
-        post({ type: 'error', message: 'No Anthropic API key configured.' });
-        return;
-      }
-
-      const [docs, vclContent] = await Promise.all([
-        this._loadDocs(),
-        Promise.resolve(this._getCurrentVclContent()),
-      ]);
-
-      const model = vscode.workspace.getConfiguration('vinculum').get<string>('model', 'claude-sonnet-4-6');
-      const anthropic = new Anthropic({ apiKey });
-
-      const stream = anthropic.messages.stream({
-        model,
-        max_tokens: 4096,
-        system: buildSystemPrompt(docs, vclContent),
-        messages: [{ role: 'user', content: message.question }],
-      });
-
-      let accumulated = '';
-      stream.on('text', (text) => {
-        accumulated += text;
-        post({ type: 'token', text });
-      });
-
-      await stream.finalMessage();
-      post({ type: 'rendered', html: await marked.parse(accumulated) });
-      post({ type: 'done' });
+      pythonBin = await ensureVenv(this._context.extensionPath, globalStoragePath);
     } catch (err) {
       post({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+      return;
     }
+
+    // ── 2. API key ───────────────────────────────────────────────────────────
+    const apiKey = await this._getApiKey();
+    if (!apiKey) {
+      post({ type: 'error', message: 'No Anthropic API key configured.' });
+      return;
+    }
+
+    // ── 3. Optional VCL context via temp file ────────────────────────────────
+    let vclTempPath: string | undefined;
+    const vclContent = this._getCurrentVclContent();
+    if (vclContent) {
+      vclTempPath = path.join(os.tmpdir(), `vinculum-${Date.now()}.vcl`);
+      try { fs.writeFileSync(vclTempPath, vclContent, 'utf8'); } catch { vclTempPath = undefined; }
+    }
+
+    // ── 4. Build CLI args ────────────────────────────────────────────────────
+    const config = vscode.workspace.getConfiguration('vinculum');
+    const model = config.get<string>('model', 'claude-sonnet-4-6');
+
+    const args = ['-m', 'vinculum_ai', '--model', model];
+    if (vclTempPath) { args.push('--vcl', vclTempPath); }
+    args.push(message.question);
+
+    // ── 5. Spawn and stream ──────────────────────────────────────────────────
+    const proc = cp.spawn(pythonBin, args, {
+      env: {
+        ...process.env,
+        PYTHONPATH: path.join(this._context.extensionPath, 'python'),
+        ANTHROPIC_API_KEY: apiKey,
+      },
+    });
+    this._activeProc = proc;
+
+    let accumulated = '';
+    let leadingNewlines = true;
+
+    proc.stdout.on('data', (chunk: Buffer) => {
+      let text = chunk.toString('utf8');
+      if (leadingNewlines) {
+        text = text.replace(/^\n+/, '');  // CLI emits a blank line before the first token
+        if (!text) { return; }
+        leadingNewlines = false;
+      }
+      accumulated += text;
+      post({ type: 'token', text });
+    });
+
+    let stderrText = '';
+    proc.stderr.on('data', (chunk: Buffer) => { stderrText += chunk.toString('utf8'); });
+
+    proc.on('close', async (code) => {
+      this._activeProc = undefined;
+      if (vclTempPath) { try { fs.unlinkSync(vclTempPath); } catch { /* ignore */ } }
+
+      if (code === 0) {
+        post({ type: 'rendered', html: await marked.parse(accumulated.trim()) });
+        post({ type: 'done' });
+      } else {
+        const errorLine = stderrText.split('\n').find(l => l.startsWith('Error:'))
+          ?? stderrText.trim()
+          ?? `Process exited with code ${code}`;
+        post({ type: 'error', message: errorLine });
+      }
+    });
+
+    proc.on('error', (err: NodeJS.ErrnoException) => {
+      this._activeProc = undefined;
+      if (vclTempPath) { try { fs.unlinkSync(vclTempPath); } catch { /* ignore */ } }
+      post({ type: 'error', message: err.message });
+    });
   }
 
   // ── API key ───────────────────────────────────────────────────────────────
@@ -153,39 +290,6 @@ export class AiAssistantPanel {
     const doc = editor.document;
     if (doc.languageId !== 'vcl' && !doc.fileName.endsWith('.vcl')) { return undefined; }
     return doc.getText();
-  }
-
-  // ── Docs: GitHub fetch with 24h cache ─────────────────────────────────────
-
-  private async _loadDocs(): Promise<string> {
-    // Check cache
-    const cacheUri = vscode.Uri.joinPath(this._context.globalStorageUri, CACHE_FILE);
-    try {
-      const raw = await vscode.workspace.fs.readFile(cacheUri);
-      const cache: DocsCache = JSON.parse(new TextDecoder().decode(raw));
-      if (Date.now() - cache.timestamp < CACHE_TTL_MS) {
-        return cache.content;
-      }
-    } catch {
-      // Cache miss or parse error — fetch fresh
-    }
-
-    // Fetch from GitHub
-    const content = await fetchDocsFromGitHub();
-
-    // Persist cache (create directory if needed)
-    try {
-      await vscode.workspace.fs.createDirectory(this._context.globalStorageUri);
-      const cache: DocsCache = { timestamp: Date.now(), content };
-      await vscode.workspace.fs.writeFile(
-        cacheUri,
-        new TextEncoder().encode(JSON.stringify(cache)),
-      );
-    } catch {
-      // Cache write failure is non-fatal
-    }
-
-    return content;
   }
 
   // ── Webview HTML ──────────────────────────────────────────────────────────
@@ -348,57 +452,6 @@ export class AiAssistantPanel {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-async function fetchDocsFromGitHub(): Promise<string> {
-  const apiUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${DOC_DIR}?ref=${GITHUB_BRANCH}`;
-  const listResp = await fetch(apiUrl, {
-    headers: { 'User-Agent': 'vscode-vinculum', 'Accept': 'application/vnd.github.v3+json' },
-  });
-
-  if (!listResp.ok) {
-    throw new Error(`GitHub API error ${listResp.status}: ${await listResp.text()}`);
-  }
-
-  const files: GithubFile[] = await listResp.json() as GithubFile[];
-  const mdFiles = files
-    .filter(f => f.name.endsWith('.md'))
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  const parts: string[] = [];
-  for (const file of mdFiles) {
-    const content = await fetch(file.download_url).then(r => r.text());
-    parts.push(`## ${file.name}\n\n${content}`);
-  }
-
-  return parts.join('\n\n---\n\n');
-}
-
-function buildSystemPrompt(docs: string, vclContent: string | undefined): string {
-  let prompt = `You are an AI assistant specializing in Vinculum Configuration Language (VCL).
-VCL is a domain-specific configuration language built on top of HCL (HashiCorp Configuration Language),
-similar to how Terraform configuration files relate to HCL.
-
-Here is the complete Vinculum documentation:
-<docs>
-${docs}
-</docs>
-`;
-
-  if (vclContent) {
-    prompt += `
-The user currently has this VCL file open:
-<current_file>
-${vclContent}
-</current_file>
-`;
-  }
-
-  prompt += `
-Answer questions about VCL, help debug configurations, and generate VCL code snippets.
-Be concise and practical. When showing VCL code, use proper HCL formatting.`;
-
-  return prompt;
-}
 
 function getNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

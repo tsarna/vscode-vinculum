@@ -60,7 +60,7 @@
       },
       {
         "command": "vinculum.clearDocCache",
-        "title": "Clear Documentation Cache",
+        "title": "Refresh AI Index",
         "category": "Vinculum"
       }
     ],
@@ -70,7 +70,12 @@
         "vinculum.model": {
           "type": "string",
           "default": "claude-sonnet-4-6",
-          "description": "Anthropic model to use for AI assistance"
+          "description": "Model name passed to vinculum-ai (e.g. claude-sonnet-4-6, gpt-4o-mini, llama-3.3-70b-versatile)"
+        },
+        "vinculum.pythonPath": {
+          "type": "string",
+          "default": "python3",
+          "description": "Path to the Python 3 interpreter used to create the AI environment (e.g. /usr/bin/python3 or /path/to/pyenv/python)"
         }
       }
     }
@@ -87,7 +92,6 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.36.0",
     "marked": "^17.0.5"
   }
 }

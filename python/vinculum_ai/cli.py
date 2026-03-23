@@ -174,10 +174,10 @@ def main() -> None:
     if args.save_index and not args.docs:
         parser.error("--save-index requires --docs (nothing to build from).")
 
-    if not args.question and not (args.docs and args.save_index):
+    if not args.question and not (args.docs and args.save_index) and not args.refresh_index:
         parser.error(
             "A question is required unless you are only building an index "
-            "(--docs DIR --save-index PATH)."
+            "(--docs DIR --save-index PATH) or refreshing the cache (--refresh-index)."
         )
 
     if args.refresh_index and (args.docs or args.index):

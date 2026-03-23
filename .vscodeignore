@@ -6,3 +6,5 @@ tsconfig.json
 esbuild.js
 *.vsix
 .DS_Store
+python/.venv/**
+python/**/__pycache__/**
