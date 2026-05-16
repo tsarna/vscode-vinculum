@@ -92,6 +92,6 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "marked": "^17.0.5"
+    "marked": "^18.0.0"
   }
 }
