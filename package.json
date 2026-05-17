@@ -89,7 +89,7 @@
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.24.0",
-    "typescript": "^5.7.0"
+    "typescript": "^6.0.0"
   },
   "dependencies": {
     "marked": "^17.0.5"
