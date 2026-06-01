@@ -67,16 +67,236 @@
     "description": "Subscription with transform pipeline"
   },
 
-  "Cron": {
-    "prefix": "cron",
+  "Trigger cron": {
+    "prefix": "trigger-cron",
     "body": [
-      "cron \"${1:name}\" {",
+      "trigger \"cron\" \"${1:name}\" {",
       "\tat \"${2:* * * * *}\" \"${3:rule}\" {",
       "\t\taction = ${4:send(ctx, bus.main, \"${5:topic}\", \"${6:payload}\")}",
       "\t}",
       "}"
     ],
-    "description": "Cron-style scheduler"
+    "description": "Cron-style scheduled trigger"
+  },
+
+  "Trigger interval": {
+    "prefix": "trigger-interval",
+    "body": [
+      "trigger \"interval\" \"${1:name}\" {",
+      "\tinterval = \"${2:5s}\"",
+      "\taction   = ${3:log_info(\"tick\", {at = ctx.name})}",
+      "}"
+    ],
+    "description": "Periodic trigger firing every interval"
+  },
+
+  "Trigger at": {
+    "prefix": "trigger-at",
+    "body": [
+      "trigger \"at\" \"${1:name}\" {",
+      "\ttime   = ${2:sunset(env.LAT, env.LON)}",
+      "\taction = ${3:send(ctx, bus.main, \"${4:topic}\", \"${5:payload}\")}",
+      "}"
+    ],
+    "description": "Absolute-time trigger (re-evaluates time each fire)"
+  },
+
+  "Trigger after": {
+    "prefix": "trigger-after",
+    "body": [
+      "trigger \"after\" \"${1:name}\" {",
+      "\tdelay  = \"${2:30s}\"",
+      "\taction = ${3:log_info(\"deferred startup task\")}",
+      "}"
+    ],
+    "description": "Fire once after a delay from startup"
+  },
+
+  "Trigger watch": {
+    "prefix": "trigger-watch",
+    "body": [
+      "trigger \"watch\" \"${1:name}\" {",
+      "\twatch  = ${2:condition.fault}",
+      "\taction = ${3:log_info(\"changed\", {old = ctx.old_value, new = ctx.new_value})}",
+      "}"
+    ],
+    "description": "React to a watchable changing value"
+  },
+
+  "Trigger file": {
+    "prefix": "trigger-file",
+    "body": [
+      "trigger \"file\" \"${1:name}\" {",
+      "\tpath   = \"${2:/path/to/watch}\"",
+      "\taction = ${3:log_info(\"file event\", {path = ctx.event_path, event = ctx.event})}",
+      "}"
+    ],
+    "description": "Watch a filesystem path for changes"
+  },
+
+  "Trigger once": {
+    "prefix": "trigger-once",
+    "body": [
+      "trigger \"once\" \"${1:name}\" {",
+      "\taction = ${2:log_info(\"one-shot\")}",
+      "}"
+    ],
+    "description": "Fire exactly once on demand via set()"
+  },
+
+  "Trigger start": {
+    "prefix": "trigger-start",
+    "body": [
+      "trigger \"start\" \"${1:name}\" {",
+      "\taction = ${2:log_info(\"startup\")}",
+      "}"
+    ],
+    "description": "Fire once at startup"
+  },
+
+  "Trigger shutdown": {
+    "prefix": "trigger-shutdown",
+    "body": [
+      "trigger \"shutdown\" \"${1:name}\" {",
+      "\taction = ${2:log_info(\"shutting down\")}",
+      "}"
+    ],
+    "description": "Fire once at shutdown"
+  },
+
+  "Trigger signals": {
+    "prefix": "trigger-signals",
+    "body": [
+      "trigger \"signals\" \"${1:name}\" {",
+      "\tSIGHUP  = ${2:log_info(\"sighup\", {signal = ctx.signal})}",
+      "\tSIGUSR1 = ${3:log_info(\"sigusr1\", {signal = ctx.signal})}",
+      "}"
+    ],
+    "description": "Map OS signals to actions"
+  },
+
+  "Trigger watchdog": {
+    "prefix": "trigger-watchdog",
+    "body": [
+      "trigger \"watchdog\" \"${1:name}\" {",
+      "\ttimeout = \"${2:60s}\"",
+      "\taction  = ${3:log_warn(\"watchdog tripped\", {misses = ctx.miss_count})}",
+      "}"
+    ],
+    "description": "Fire when set() is not called within timeout"
+  },
+
+  "Condition timer": {
+    "prefix": "condition-timer",
+    "body": [
+      "condition \"timer\" \"${1:name}\" {",
+      "\tinput           = ${2:get(var.flag)}",
+      "\tactivate_after  = \"${3:30s}\"",
+      "\tdeactivate_after = \"${4:5s}\"",
+      "}"
+    ],
+    "description": "Timer condition: apply temporal semantics to a boolean signal"
+  },
+
+  "Condition threshold": {
+    "prefix": "condition-threshold",
+    "body": [
+      "condition \"threshold\" \"${1:name}\" {",
+      "\tinput      = ${2:get(metric.temperature)}",
+      "\tactivate   = ${3:> 80}",
+      "\tdeactivate = ${4:< 75}",
+      "}"
+    ],
+    "description": "Threshold condition: boolean from a numeric value with hysteresis"
+  },
+
+  "Condition counter": {
+    "prefix": "condition-counter",
+    "body": [
+      "condition \"counter\" \"${1:name}\" {",
+      "\tpreset = ${2:3}",
+      "\twindow = \"${3:1m}\"",
+      "}"
+    ],
+    "description": "Counter condition: activate when event count reaches preset"
+  },
+
+  "Condition with hooks": {
+    "prefix": "condition-hooks",
+    "body": [
+      "condition \"timer\" \"${1:name}\" {",
+      "\tinput         = ${2:get(var.flag)}",
+      "\tlatch         = ${3:true}",
+      "\ton_init       = ${4:log_info(\"condition init\", {active = ctx.new_value})}",
+      "\ton_activate   = ${5:log_info(\"activated\")}",
+      "\ton_deactivate = ${6:log_info(\"deactivated\")}",
+      "}"
+    ],
+    "description": "Condition with lifecycle hooks (on_init/on_activate/on_deactivate)"
+  },
+
+  "FSM": {
+    "prefix": "fsm",
+    "body": [
+      "fsm \"${1:name}\" {",
+      "\tinitial = \"${2:idle}\"",
+      "",
+      "\tstate \"${2:idle}\" {",
+      "\t\ton_entry = ${3:log_info(\"now idle\")}",
+      "\t}",
+      "\tstate \"${4:active}\" {",
+      "\t\ton_entry = ${5:log_info(\"now active\")}",
+      "\t}",
+      "",
+      "\tevent \"${6:start}\" { transition \"${2:idle}\"   \"${4:active}\" {} }",
+      "\tevent \"${7:stop}\"  { transition \"${4:active}\" \"${2:idle}\"   {} }",
+      "",
+      "\ton_change = log_info(\"${1:name}: \\${ctx.old_state} -> \\${ctx.new_state}\")",
+      "}"
+    ],
+    "description": "Finite state machine with states, events, and transitions"
+  },
+
+  "Procedure": {
+    "prefix": "procedure",
+    "body": [
+      "procedure \"${1:name}\" {",
+      "\tspec {",
+      "\t\tparams {",
+      "\t\t\t${2:arg} = ${3:required}",
+      "\t\t}",
+      "\t}",
+      "",
+      "\t${4:result} = ${5:expression}",
+      "",
+      "\treturn = ${4:result}",
+      "}"
+    ],
+    "description": "Imperative procedure with parameters and return"
+  },
+
+  "Editor line": {
+    "prefix": "editor-line",
+    "body": [
+      "editor \"line\" \"${1:name}\" {",
+      "\tmode = \"${2:file}\"",
+      "",
+      "\tmatch \"${3:^pattern}\" {",
+      "\t\treplace = \"${4:replacement}\"",
+      "\t}",
+      "}"
+    ],
+    "description": "Line-based regex editor (file or string mode)"
+  },
+
+  "Wire format": {
+    "prefix": "wire_format",
+    "body": [
+      "wire_format \"${1:type}\" \"${2:name}\" {",
+      "\t${3:# type-specific attributes}",
+      "}"
+    ],
+    "description": "Pluggable wire format for serialization"
   },
 
   "Function": {
@@ -212,6 +432,120 @@
     "description": "Simple WebSocket server"
   },
 
+  "Server metrics": {
+    "prefix": "server-metrics",
+    "body": [
+      "server \"metrics\" \"${1:name}\" {",
+      "\tlisten = \":${2:9090}\"",
+      "\tpath   = \"${3:/metrics}\"",
+      "}"
+    ],
+    "description": "Prometheus metrics endpoint"
+  },
+
+  "Client AWS": {
+    "prefix": "client-aws",
+    "body": [
+      "client \"aws\" \"${1:name}\" {",
+      "\tregion = \"${2:us-east-1}\"",
+      "\t# Defaults to standard AWS credential chain.",
+      "\t# access_key_id     = env.AWS_ACCESS_KEY_ID",
+      "\t# secret_access_key = env.AWS_SECRET_ACCESS_KEY",
+      "}"
+    ],
+    "description": "AWS credentials/region for SNS, SQS, etc."
+  },
+
+  "Client HTTP": {
+    "prefix": "client-http",
+    "body": [
+      "client \"http\" \"${1:name}\" {",
+      "\tbase_url = \"${2:https://api.example.com}\"",
+      "\theaders = {",
+      "\t\t\"Authorization\" = \"Bearer \\${env.${3:API_TOKEN}}\"",
+      "\t}",
+      "}"
+    ],
+    "description": "HTTP client with base URL and default headers"
+  },
+
+  "Client Kafka": {
+    "prefix": "client-kafka",
+    "body": [
+      "client \"kafka\" \"${1:name}\" {",
+      "\tbrokers = [\"${2:broker1:9092}\", \"${3:broker2:9092}\"]",
+      "",
+      "\tsender \"${4:main}\" {",
+      "\t\ttopic = \"${5:events}\"",
+      "\t}",
+      "",
+      "\treceiver \"${6:main}\" {",
+      "\t\ttopic       = \"${7:events}\"",
+      "\t\tgroup_id    = \"${8:vinculum}\"",
+      "\t\tsubscriber  = bus.${9:main}",
+      "\t}",
+      "}"
+    ],
+    "description": "Kafka client with sender and receiver"
+  },
+
+  "Client LLM": {
+    "prefix": "client-llm",
+    "body": [
+      "client \"llm\" \"${1:name}\" {",
+      "\tapi_key     = env.${2:LLM_API_KEY}",
+      "\tmodel       = \"${3:claude-sonnet-4-6}\"",
+      "\tmax_tokens  = ${4:4096}",
+      "\ttemperature = ${5:0.7}",
+      "}"
+    ],
+    "description": "Generic LLM client"
+  },
+
+  "Client MQTT": {
+    "prefix": "client-mqtt",
+    "body": [
+      "client \"mqtt\" \"${1:name}\" {",
+      "\tbrokers   = [\"${2:mqtt://broker.example.com:1883}\"]",
+      "\tclient_id = \"vinculum-${1:name}-\\${sys.hostname}\"",
+      "",
+      "\tsender \"${3:main}\" {",
+      "\t\ttopic_prefix = \"${4:vinculum/}\"",
+      "\t}",
+      "",
+      "\treceiver \"${5:main}\" {",
+      "\t\ttopic       = \"${6:sensors/#}\"",
+      "\t\tsubscriber  = bus.${7:main}",
+      "\t}",
+      "}"
+    ],
+    "description": "MQTT client with sender and receiver"
+  },
+
+  "Client MQTT (TLS)": {
+    "prefix": "client-mqtt-tls",
+    "body": [
+      "client \"mqtt\" \"${1:name}\" {",
+      "\tbrokers = [\"${2:mqtts://broker.example.com:8883}\"]",
+      "",
+      "\ttls {",
+      "\t\tenabled = true",
+      "\t\tca_cert = \"${3:/etc/certs/ca.crt}\"",
+      "\t}",
+      "",
+      "\tauth {",
+      "\t\tusername = \"${4:vinculum}\"",
+      "\t\tpassword = env.${5:MQTT_PASSWORD}",
+      "\t}",
+      "",
+      "\tsender \"${6:main}\" {",
+      "\t\ttopic_prefix = \"${7:vinculum/}\"",
+      "\t}",
+      "}"
+    ],
+    "description": "MQTT client with TLS and credentials"
+  },
+
   "Client OpenAI": {
     "prefix": "client-openai",
     "body": [
@@ -223,6 +557,141 @@
       "}"
     ],
     "description": "OpenAI (or compatible) LLM client"
+  },
+
+  "Client OTLP": {
+    "prefix": "client-otlp",
+    "body": [
+      "client \"otlp\" \"${1:name}\" {",
+      "\tendpoint = \"${2:otel-collector:4317}\"",
+      "\tinsecure = ${3:true}",
+      "\theaders = {",
+      "\t\t${4:# \"x-api-key\" = env.OTLP_TOKEN}",
+      "\t}",
+      "}"
+    ],
+    "description": "OpenTelemetry Protocol exporter client"
+  },
+
+  "Client RabbitMQ": {
+    "prefix": "client-rabbitmq",
+    "body": [
+      "client \"rabbitmq\" \"${1:name}\" {",
+      "\tbrokers = [\"${2:amqp://rabbitmq.example.com:5672/}\"]",
+      "",
+      "\tauth {",
+      "\t\tusername = \"${3:vinculum}\"",
+      "\t\tpassword = env.${4:AMQP_PASSWORD}",
+      "\t}",
+      "",
+      "\tsender \"${5:main}\" {",
+      "\t\texchange = \"${6:events}\"",
+      "\t}",
+      "",
+      "\treceiver \"${7:main}\" {",
+      "\t\tqueue      = \"${8:vinculum-events}\"",
+      "\t\tsubscriber = bus.${9:main}",
+      "\t}",
+      "}"
+    ],
+    "description": "RabbitMQ / AMQP 0-9-1 client with sender and receiver"
+  },
+
+  "Client Redis": {
+    "prefix": "client-redis",
+    "body": [
+      "client \"redis\" \"${1:name}\" {",
+      "\taddress  = \"${2:localhost:6379}\"",
+      "\tpassword = env.${3:REDIS_PASSWORD}",
+      "\tdatabase = ${4:0}",
+      "}"
+    ],
+    "description": "Redis/Valkey connection (passive — pair with redis_pubsub / redis_kv / redis_stream)"
+  },
+
+  "Client Redis pubsub": {
+    "prefix": "client-redis-pubsub",
+    "body": [
+      "client \"redis_pubsub\" \"${1:name}\" {",
+      "\tconnection = client.${2:myredis}",
+      "",
+      "\tsender \"${3:main}\" {",
+      "\t\tchannel_prefix = \"${4:vinculum:}\"",
+      "\t}",
+      "",
+      "\treceiver \"${5:main}\" {",
+      "\t\tchannels   = [\"${6:vinculum:*}\"]",
+      "\t\tsubscriber = bus.${7:main}",
+      "\t}",
+      "}"
+    ],
+    "description": "Redis Pub/Sub client (references a redis connection)"
+  },
+
+  "Client Redis KV": {
+    "prefix": "client-redis-kv",
+    "body": [
+      "client \"redis_kv\" \"${1:name}\" {",
+      "\tconnection = client.${2:myredis}",
+      "}"
+    ],
+    "description": "Redis key-value client (references a redis connection)"
+  },
+
+  "Client Redis stream": {
+    "prefix": "client-redis-stream",
+    "body": [
+      "client \"redis_stream\" \"${1:name}\" {",
+      "\tconnection = client.${2:myredis}",
+      "",
+      "\tsender \"${3:main}\" {",
+      "\t\tstream = \"${4:events}\"",
+      "\t}",
+      "",
+      "\treceiver \"${5:main}\" {",
+      "\t\tstream     = \"${6:events}\"",
+      "\t\tgroup      = \"${7:vinculum}\"",
+      "\t\tconsumer   = \"\\${sys.hostname}\"",
+      "\t\tsubscriber = bus.${8:main}",
+      "\t}",
+      "}"
+    ],
+    "description": "Redis Streams client (references a redis connection)"
+  },
+
+  "Client SNS sender": {
+    "prefix": "client-sns-sender",
+    "body": [
+      "client \"sns_sender\" \"${1:name}\" {",
+      "\taws       = client.${2:aws_prod}",
+      "\ttopic_arn = \"${3:arn:aws:sns:us-east-1:123456789012:my-topic}\"",
+      "}"
+    ],
+    "description": "AWS SNS publisher (requires a client \"aws\" block)"
+  },
+
+  "Client SQS sender": {
+    "prefix": "client-sqs-sender",
+    "body": [
+      "client \"sqs_sender\" \"${1:name}\" {",
+      "\taws       = client.${2:aws_prod}",
+      "\tqueue_url = \"${3:https://sqs.us-east-1.amazonaws.com/123456789012/my-queue}\"",
+      "}"
+    ],
+    "description": "AWS SQS sender (requires a client \"aws\" block)"
+  },
+
+  "Client SQS receiver": {
+    "prefix": "client-sqs-receiver",
+    "body": [
+      "client \"sqs_receiver\" \"${1:name}\" {",
+      "\taws        = client.${2:aws_prod}",
+      "\tqueue_url  = \"${3:https://sqs.us-east-1.amazonaws.com/123456789012/my-queue}\"",
+      "\ttopic      = \"${4:incoming/messages}\"",
+      "\tsubscriber = bus.${5:main}",
+      "}"
+    ],
+    "description": "AWS SQS receiver (requires a client \"aws\" block)"
   },
 
   "Client VWS": {
@@ -266,14 +735,77 @@
     "description": "Prometheus histogram metric"
   },
 
-  "Signals": {
-    "prefix": "signals",
+  "FSM state": {
+    "prefix": "state",
     "body": [
-      "signals {",
-      "\tSIGHUP  = ${1:log_info(\"sighup\", {signal = ctx.signal})}",
-      "\tSIGUSR1 = ${2:log_info(\"sigusr1\", {signal = ctx.signal})}",
+      "state \"${1:name}\" {",
+      "\ton_entry = ${2:log_info(\"entered ${1:name}\")}",
       "}"
     ],
-    "description": "Map OS signals to actions"
+    "description": "FSM state block"
+  },
+
+  "FSM event": {
+    "prefix": "event",
+    "body": [
+      "event \"${1:name}\" {",
+      "\ttransition \"${2:from}\" \"${3:to}\" {}",
+      "}"
+    ],
+    "description": "FSM event block with a transition"
+  },
+
+  "FSM transition": {
+    "prefix": "transition",
+    "body": [
+      "transition \"${1:from}\" \"${2:to}\" {",
+      "\t${3:# guard = expression}",
+      "\t${4:# action = expression}",
+      "}"
+    ],
+    "description": "FSM transition (inside an event block)"
+  },
+
+  "Editor match": {
+    "prefix": "match",
+    "body": [
+      "match \"${1:^pattern}\" {",
+      "\treplace = \"${2:replacement}\"",
+      "}"
+    ],
+    "description": "Editor regex match rule"
+  },
+
+  "Procedure spec": {
+    "prefix": "spec",
+    "body": [
+      "spec {",
+      "\tparams {",
+      "\t\t${1:arg} = ${2:required}",
+      "\t}",
+      "}"
+    ],
+    "description": "Procedure parameter spec"
+  },
+
+  "Client sender": {
+    "prefix": "sender",
+    "body": [
+      "sender \"${1:main}\" {",
+      "\t${2:topic} = \"${3:value}\"",
+      "}"
+    ],
+    "description": "Client sender sub-block"
+  },
+
+  "Client receiver": {
+    "prefix": "receiver",
+    "body": [
+      "receiver \"${1:main}\" {",
+      "\t${2:topic}   = \"${3:value}\"",
+      "\tsubscriber = bus.${4:main}",
+      "}"
+    ],
+    "description": "Client receiver sub-block"
   }
 }

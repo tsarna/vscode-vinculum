@@ -6,9 +6,6 @@
 - Regenerate `icon.png` from `scripts/generate-icon.js` after updating the SVG
 - Publish a new patch version once updated
 
-## ~~GitHub CI~~ ✓
-On push/PR: typecheck + build. On `v*` tag: package `.vsix` and attach to GitHub release.
-
 ## CI: Auto-publish to Marketplace on tag
 - Store Marketplace PAT as a GitHub Actions secret (`VSCE_PAT`)
 - Add a publish step to `.github/workflows/ci.yml` after the package step

@@ -9,6 +9,7 @@
     { "include": "#heredoc" },
     { "include": "#string" },
     { "include": "#block_keyword" },
+    { "include": "#control_flow_keyword" },
     { "include": "#subblock_keyword" },
     { "include": "#literal" },
     { "include": "#number" },
@@ -76,17 +77,21 @@
     },
     "block_keyword": {
       "name": "storage.type.vcl",
-      "match": "\\b(assert|bus|client|const|cron|function|jq|metric|server|signals|subscription|var)\\b"
+      "match": "\\b(assert|bus|client|condition|const|cron|editor|fsm|function|jq|metric|procedure|server|signals|subscription|trigger|var|wire_format)\\b"
     },
     "subblock_keyword": {
       "name": "keyword.control.vcl",
-      "match": "\\b(at|files|handle|prompt|resource|tool)\\b"
+      "match": "\\b(after|at|auth|before|event|files|handle|match|params|prompt|reconnect|receiver|resource|sasl|sender|spec|state|storage|tls|tool|transition|will)\\b"
+    },
+    "control_flow_keyword": {
+      "name": "keyword.control.vcl",
+      "match": "\\b(if|elif|else|while|for|switch|case|return|in)\\b"
     },
     "literal": {
       "patterns": [
         {
           "name": "constant.language.vcl",
-          "match": "\\b(true|false|null)\\b"
+          "match": "\\b(true|false|null|required)\\b"
         }
       ]
     },
@@ -106,7 +111,7 @@
       "patterns": [
         {
           "name": "variable.language.vcl",
-          "match": "\\b(bus|client|env|http_status|metric|server|var)(?=\\.)"
+          "match": "\\b(bus|client|condition|env|fsm|http_status|metric|server|sys|trigger|var|wire_format)(?=\\.)"
         },
         {
           "name": "variable.language.vcl",
