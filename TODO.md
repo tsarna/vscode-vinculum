@@ -7,8 +7,8 @@
 - Publish a new patch version once updated
 
 ## CI: Auto-publish to Marketplace on tag
-- Store Marketplace PAT as a GitHub Actions secret (`VSCE_PAT`)
-- Add a publish step to `.github/workflows/ci.yml` after the package step
+- Workflow step is in place — store a Marketplace PAT as the `VSCE_PAT` GitHub Actions secret to activate it
+- Optionally add an Open VSX step (`OVSX_PAT` secret + `npx ovsx publish`) to mirror to VSCodium/Cursor
 
 ## Context-aware Completions
 - Add a `vscode.CompletionItemProvider` to replace dumb snippet triggers

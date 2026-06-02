@@ -33,3 +33,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: "*.vsix"
+
+      - name: Publish to VS Code Marketplace
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: npx @vscode/vsce publish --packagePath *.vsix --pat "$VSCE_PAT"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
